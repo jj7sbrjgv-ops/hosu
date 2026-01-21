@@ -3,18 +3,14 @@ let stepCount = 0;
 let isListening = false;
 let lastAcceleration = 0;
 let chart = null;
-let deviceMotionListener = null;
 const STEP_THRESHOLD = 20; // 加速度の閾値
 const STORAGE_KEY = 'stepData';
 const LAST_RESET_KEY = 'lastResetTime';
 const MAX_DAYS = 30;
-const BACKGROUND_STEP_KEY = 'backgroundSteps';
-const BACKGROUND_TIME_KEY = 'backgroundTime';
 
 // ===== 初期化 =====
 document.addEventListener('DOMContentLoaded', () => {
     initializeApp();
-    registerServiceWorker();
     setupEventListeners();
     loadTodaySteps();
     updateDisplay();
@@ -31,32 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
         checkAndResetSteps();
         updateStats();
     }, 60000); // 1分ごと
-    
-    // バックグラウンドステップを同期
-    setInterval(syncBackgroundSteps, 5000); // 5秒ごと
 });
-
-// ===== Service Worker登録 =====
-async function registerServiceWorker() {
-    if ('serviceWorker' in navigator) {
-        try {
-            const registration = await navigator.serviceWorker.register('service-worker.js');
-            console.log('Service Worker登録成功:', registration);
-            
-            // バックグラウンド同期をリクエスト
-            if ('sync' in registration) {
-                try {
-                    await registration.sync.register('sync-steps');
-                    console.log('バックグラウンド同期登録成功');
-                } catch (e) {
-                    console.log('バックグラウンド同期はサポートされていません');
-                }
-            }
-        } catch (error) {
-            console.log('Service Worker登録失敗:', error);
-        }
-    }
-}
 
 // ===== 初期化関数 =====
 function initializeApp() {
@@ -120,54 +91,12 @@ function setupSensorPermission() {
 function startListening() {
     isListening = true;
     
-    // デバイスモーションハンドラーを保持
-    deviceMotionListener = handleDeviceMotion;
-    
-    // マルチタイプのリスナーを設定
-    window.addEventListener('devicemotion', deviceMotionListener, true);
-    
-    // バックグラウンドでの継続リッスンのため、ページ非表示時もリスナーを保持
-    document.addEventListener('visibilitychange', handleVisibilityChange, false);
+    window.addEventListener('devicemotion', handleDeviceMotion, true);
 }
 
 function stopListening() {
     isListening = false;
-    window.removeEventListener('devicemotion', deviceMotionListener, true);
-    document.removeEventListener('visibilitychange', handleVisibilityChange, false);
-}
-
-// バックグラウンド時のハンドラー
-function handleVisibilityChange() {
-    if (document.hidden) {
-        // バックグラウンド時：タイムスタンプを記録
-        recordBackgroundTime();
-    } else {
-        // フォアグラウンド復帰時：バックグラウンド中のステップを同期
-        syncBackgroundSteps();
-    }
-}
-
-function recordBackgroundTime() {
-    localStorage.setItem(BACKGROUND_TIME_KEY, Date.now().toString());
-}
-
-function syncBackgroundSteps() {
-    const backgroundTime = localStorage.getItem(BACKGROUND_TIME_KEY);
-    if (!backgroundTime) return;
-    
-    const backgroundSteps = parseInt(localStorage.getItem(BACKGROUND_STEP_KEY)) || 0;
-    if (backgroundSteps > 0) {
-        stepCount += backgroundSteps;
-        saveCurrentSteps();
-        updateDisplay();
-        updateStats();
-        renderHistory();
-        
-        // バックグラウンドステップをクリア
-        localStorage.removeItem(BACKGROUND_STEP_KEY);
-    }
-    
-    localStorage.removeItem(BACKGROUND_TIME_KEY);
+    window.removeEventListener('devicemotion', handleDeviceMotion, true);
 }
 
 // ===== 加速度検出 =====
@@ -186,13 +115,7 @@ function handleDeviceMotion(event) {
     
     // 閾値を超えた場合にカウント
     if (totalAcceleration > STEP_THRESHOLD && lastAcceleration <= STEP_THRESHOLD) {
-        if (document.hidden) {
-            // バックグラウンド時
-            incrementBackgroundStep();
-        } else {
-            // フォアグラウンド時
-            incrementStep();
-        }
+        incrementStep();
     }
     
     lastAcceleration = totalAcceleration;
@@ -207,11 +130,6 @@ function incrementStep() {
     if (stepCount % 10 === 0) {
         updateStats();
     }
-}
-
-function incrementBackgroundStep() {
-    const backgroundSteps = parseInt(localStorage.getItem(BACKGROUND_STEP_KEY)) || 0;
-    localStorage.setItem(BACKGROUND_STEP_KEY, (backgroundSteps + 1).toString());
 }
 
 // ===== ストレージ操作 =====
@@ -476,6 +394,5 @@ document.addEventListener('visibilitychange', () => {
         loadTodaySteps();
         renderChart();
         renderHistory();
-        syncBackgroundSteps();
     }
 });
