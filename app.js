@@ -10,7 +10,6 @@ const LAST_RESET_KEY = 'lastResetTime';
 const MAX_DAYS = 30;
 const BACKGROUND_STEP_KEY = 'backgroundSteps';
 const BACKGROUND_TIME_KEY = 'backgroundTime';
-const LISTENING_STATE_KEY = 'isListeningEnabled';
 
 // ===== 初期化 =====
 document.addEventListener('DOMContentLoaded', () => {
@@ -64,7 +63,6 @@ function initializeApp() {
     loadOrInitializeData();
     setupSensorPermission();
     updateDateDisplay();
-    restoreListeningState();
 }
 
 function setupEventListeners() {
@@ -96,63 +94,40 @@ function requestSensorPermission() {
         DeviceMotionEvent.requestPermission()
             .then(permissionState => {
                 if (permissionState === 'granted') {
-                    enableSensorListening();
+                    startListening();
+                    document.getElementById('permissionBtn').disabled = true;
+                    document.getElementById('permissionBtn').textContent = '✓ センサー有効';
                 }
             })
             .catch(console.error);
     } else {
         // Android や iOS 12 以下
-        enableSensorListening();
+        startListening();
+        document.getElementById('permissionBtn').disabled = true;
+        document.getElementById('permissionBtn').textContent = '✓ センサー有効';
     }
 }
 
 function setupSensorPermission() {
     const permissionBtn = document.getElementById('permissionBtn');
-    const savedState = localStorage.getItem(LISTENING_STATE_KEY) === 'true';
-    if (savedState && permissionBtn) {
+    if (isListening) {
         permissionBtn.disabled = true;
         permissionBtn.textContent = '✓ センサー有効';
     }
 }
 
-function restoreListeningState() {
-    const savedState = localStorage.getItem(LISTENING_STATE_KEY) === 'true';
-    if (savedState) {
-        // ボタンUIを先に更新
-        const permissionBtn = document.getElementById('permissionBtn');
-        if (permissionBtn) {
-            permissionBtn.disabled = true;
-            permissionBtn.textContent = '✓ センサー有効';
-        }
-        // その後、センサーリッスンを開始
-        setTimeout(() => {
-            startListening();
-        }, 100);
-    }
-}
-function enableSensorListening() {
-    startListening();
-    localStorage.setItem(LISTENING_STATE_KEY, 'true');
-    document.getElementById('permissionBtn').disabled = true;
-    document.getElementById('permissionBtn').textContent = '✓ センサー有効';
-}
-
 // ===== リスニング機能 =====
 function startListening() {
-    if (isListening) return; // 既に実行中なら何もしない
-    
     isListening = true;
     
     // デバイスモーションハンドラーを保持
     deviceMotionListener = handleDeviceMotion;
     
-    // リスナーを設定
+    // マルチタイプのリスナーを設定
     window.addEventListener('devicemotion', deviceMotionListener, true);
     
     // バックグラウンドでの継続リッスンのため、ページ非表示時もリスナーを保持
     document.addEventListener('visibilitychange', handleVisibilityChange, false);
-    
-    console.log('✓ センサーリスニング開始');
 }
 
 function stopListening() {
