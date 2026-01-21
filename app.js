@@ -109,7 +109,7 @@ function requestSensorPermission() {
 function setupSensorPermission() {
     const permissionBtn = document.getElementById('permissionBtn');
     const savedState = localStorage.getItem(LISTENING_STATE_KEY) === 'true';
-    if (savedState) {
+    if (savedState && permissionBtn) {
         permissionBtn.disabled = true;
         permissionBtn.textContent = '✓ センサー有効';
     }
@@ -118,8 +118,16 @@ function setupSensorPermission() {
 function restoreListeningState() {
     const savedState = localStorage.getItem(LISTENING_STATE_KEY) === 'true';
     if (savedState) {
-        isListening = true;
-        startListening();
+        // ボタンUIを先に更新
+        const permissionBtn = document.getElementById('permissionBtn');
+        if (permissionBtn) {
+            permissionBtn.disabled = true;
+            permissionBtn.textContent = '✓ センサー有効';
+        }
+        // その後、センサーリッスンを開始
+        setTimeout(() => {
+            startListening();
+        }, 100);
     }
 }
 function enableSensorListening() {
@@ -131,16 +139,20 @@ function enableSensorListening() {
 
 // ===== リスニング機能 =====
 function startListening() {
+    if (isListening) return; // 既に実行中なら何もしない
+    
     isListening = true;
     
     // デバイスモーションハンドラーを保持
     deviceMotionListener = handleDeviceMotion;
     
-    // マルチタイプのリスナーを設定
+    // リスナーを設定
     window.addEventListener('devicemotion', deviceMotionListener, true);
     
     // バックグラウンドでの継続リッスンのため、ページ非表示時もリスナーを保持
     document.addEventListener('visibilitychange', handleVisibilityChange, false);
+    
+    console.log('✓ センサーリスニング開始');
 }
 
 function stopListening() {
