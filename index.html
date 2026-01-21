@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>毎日歩数計</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📊 毎日歩数計</h1>
+            <p class="date-display" id="dateDisplay"></p>
+        </header>
+
+        <main>
+            <!-- 今日の歩数セクション -->
+            <section class="today-section">
+                <div class="step-display">
+                    <div class="step-count" id="stepCount">0</div>
+                    <p class="step-label">歩</p>
+                </div>
+                <div class="status-info">
+                    <p id="timeRemaining">リセットまで: 計算中...</p>
+                    <button id="permissionBtn" class="permission-btn">センサー許可</button>
+                    <button id="resetBtn" class="reset-btn">データをリセット</button>
+                </div>
+            </section>
+
+            <!-- 統計情報セクション -->
+            <section class="stats-section">
+                <h2>統計情報</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <p class="stat-label">本日の歩数</p>
+                        <p class="stat-value" id="todaySteps">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <p class="stat-label">平均歩数</p>
+                        <p class="stat-value" id="avgSteps">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <p class="stat-label">最高記録</p>
+                        <p class="stat-value" id="maxSteps">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <p class="stat-label">連続日数</p>
+                        <p class="stat-value" id="streak">0</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- グラフセクション -->
+            <section class="chart-section">
+                <h2>30日間の歩数推移</h2>
+                <div class="chart-container">
+                    <canvas id="stepChart"></canvas>
+                </div>
+            </section>
+
+            <!-- 詳細リスト -->
+            <section class="history-section">
+                <h2>30日間の歩数記録</h2>
+                <div class="history-list" id="historyList"></div>
+            </section>
+        </main>
+
+        <footer>
+            <p>アプリの使用方法：センサー許可をして、スマートフォンを持って歩いてください。</p>
+        </footer>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
