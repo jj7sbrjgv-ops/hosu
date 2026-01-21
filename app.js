@@ -3,10 +3,13 @@ let stepCount = 0;
 let isListening = false;
 let lastAcceleration = 0;
 let chart = null;
+let deviceMotionListener = null;
 const STEP_THRESHOLD = 20; // 加速度の閾値
 const STORAGE_KEY = 'stepData';
 const LAST_RESET_KEY = 'lastResetTime';
 const MAX_DAYS = 30;
+const BACKGROUND_STEP_KEY = 'backgroundSteps';
+const BACKGROUND_TIME_KEY = 'backgroundTime';
 
 // ===== 初期化 =====
 document.addEventListener('DOMContentLoaded', () => {
@@ -27,6 +30,9 @@ document.addEventListener('DOMContentLoaded', () => {
         checkAndResetSteps();
         updateStats();
     }, 60000); // 1分ごと
+    
+    // バックグラウンドステップを定期的に同期
+    setInterval(syncBackgroundSteps, 5000); // 5秒ごと
 });
 
 // ===== 初期化関数 =====
@@ -91,12 +97,54 @@ function setupSensorPermission() {
 function startListening() {
     isListening = true;
     
-    window.addEventListener('devicemotion', handleDeviceMotion, true);
+    // デバイスモーションハンドラーを保持
+    deviceMotionListener = handleDeviceMotion;
+    
+    // センサーリスナーを設定
+    window.addEventListener('devicemotion', deviceMotionListener, true);
+    
+    // バックグラウンド検出用のリスナー
+    document.addEventListener('visibilitychange', handleVisibilityChange, false);
 }
 
 function stopListening() {
     isListening = false;
-    window.removeEventListener('devicemotion', handleDeviceMotion, true);
+    window.removeEventListener('devicemotion', deviceMotionListener, true);
+    document.removeEventListener('visibilitychange', handleVisibilityChange, false);
+}
+
+// バックグラウンド時のハンドラー
+function handleVisibilityChange() {
+    if (document.hidden) {
+        // バックグラウンド時：タイムスタンプを記録
+        recordBackgroundTime();
+    } else {
+        // フォアグラウンド復帰時：バックグラウンド中のステップを同期
+        syncBackgroundSteps();
+    }
+}
+
+function recordBackgroundTime() {
+    localStorage.setItem(BACKGROUND_TIME_KEY, Date.now().toString());
+}
+
+function syncBackgroundSteps() {
+    const backgroundTime = localStorage.getItem(BACKGROUND_TIME_KEY);
+    if (!backgroundTime) return;
+    
+    const backgroundSteps = parseInt(localStorage.getItem(BACKGROUND_STEP_KEY)) || 0;
+    if (backgroundSteps > 0) {
+        stepCount += backgroundSteps;
+        saveCurrentSteps();
+        updateDisplay();
+        updateStats();
+        renderHistory();
+        
+        // バックグラウンドステップをクリア
+        localStorage.removeItem(BACKGROUND_STEP_KEY);
+    }
+    
+    localStorage.removeItem(BACKGROUND_TIME_KEY);
 }
 
 // ===== 加速度検出 =====
@@ -115,7 +163,13 @@ function handleDeviceMotion(event) {
     
     // 閾値を超えた場合にカウント
     if (totalAcceleration > STEP_THRESHOLD && lastAcceleration <= STEP_THRESHOLD) {
-        incrementStep();
+        if (document.hidden) {
+            // バックグラウンド時
+            incrementBackgroundStep();
+        } else {
+            // フォアグラウンド時
+            incrementStep();
+        }
     }
     
     lastAcceleration = totalAcceleration;
@@ -130,6 +184,11 @@ function incrementStep() {
     if (stepCount % 10 === 0) {
         updateStats();
     }
+}
+
+function incrementBackgroundStep() {
+    const backgroundSteps = parseInt(localStorage.getItem(BACKGROUND_STEP_KEY)) || 0;
+    localStorage.setItem(BACKGROUND_STEP_KEY, (backgroundSteps + 1).toString());
 }
 
 // ===== ストレージ操作 =====
@@ -387,6 +446,7 @@ function renderHistory() {
 // ページが見えるようになったときに更新
 document.addEventListener('visibilitychange', () => {
     if (!document.hidden) {
+        syncBackgroundSteps();
         updateDisplay();
         updateStats();
         updateTimeRemaining();
